@@ -1,0 +1,11 @@
+# temporary files
+*.o
+*.d
+*.swp
+*.swo
+
+# others
+user.mk
+
+# targets
+joinr
