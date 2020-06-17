@@ -203,7 +203,7 @@ static void app_err(const char *fmt, ...)
 	fprintf(stderr, "\n");
 	va_end(args);
 
-	abort();
+	exit(1);
 }
 
 
