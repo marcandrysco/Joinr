@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "aph.h"
+
 
 
 /**
@@ -42,6 +44,17 @@ struct ctx_t {
 static void app_proc(const char *path, struct ctx_t *ctx);
 static void app_err(const char *fmt, ...);
 
+static FILE *file_open(const char *path, const char *mode)
+{
+	FILE *file;
+
+	file = fopen(path, mode);
+	if(file == NULL)
+		app_err("Failed to open '%s'. %s.", path, strerror(errno));
+
+	return file;
+}
+
 static struct str_t str_new(void);
 static void str_delete(struct str_t str);
 static void str_ch(struct str_t *str, char ch);
@@ -53,6 +66,11 @@ static char *str_done(struct str_t *str);
 static bool rdline(FILE *file, char **line, uint32_t *size);
 
 
+struct opts_t {
+	bool verb;
+	const char *in, *out, *map;
+};
+
 /**
  * Main entry point.
  *   @argc: The argument count.
@@ -60,42 +78,60 @@ static bool rdline(FILE *file, char **line, uint32_t *size);
  */
 int main(int argc, char **argv)
 {
-	int i;
-	char *path;
-	FILE *file;
+	char *err;
+	struct opts_t opts;
 
-	for(i = 1; i < argc; i++) {
-		struct ctx_t  ctx;
+	struct aph_t aph[] = {
+		APH_STR('\0', NULL, 0, &opts.in),
+		APH_STR('o', "output", 0, &opts.out),
+		APH_STR('m', "map", 0, &opts.map),
+		APH_FLAG('v', "verbose", 0, &opts.verb),
+		APH_END
+	};
 
-		ctx.src = str_new();
-		ctx.map = str_new();
-		ctx.lin = ctx.col = 0;
-		ctx.src_cur = ctx.src_cnt = 0;
-		ctx.lin_cur = 0;
+	if(aph_parse(aph, 0, argc, argv, &err) < 0)
+		app_err(err);
 
-		app_proc(argv[i], &ctx);
+	if(opts.in == NULL)
+		app_err("Missing input file."); // TODO: this should be a list of inputs
 
-		assert(asprintf(&path, "%s.map", argv[i]) >= 0);
+	struct ctx_t  ctx;
+	FILE *in, *out, *map;
 
-		printf("//# sourceMappingURL=%s\n", path);
+	in = opts.in ? file_open(opts.in, "r") : stdin;
+	out = opts.out ? file_open(opts.out, "w") : stdout;
+	map = opts.map ? file_open(opts.map, "w") : NULL;
 
-		file = fopen(path, "w");
-		if(file == NULL)
-			app_err("Failed to open '%s'. %s.", path, strerror(errno));
+	ctx.src = str_new();
+	ctx.map = str_new();
+	ctx.lin = ctx.col = 0;
+	ctx.src_cur = ctx.src_cnt = 0;
+	ctx.lin_cur = 0;
 
-		fprintf(file, "{\n");
-		fprintf(file, "  \"version\": 3,\n");
-		fprintf(file, "  \"sources\": [%s],\n", str_done(&ctx.src));
-		fprintf(file, "  \"names\": [],\n");
-		fprintf(file, "  \"mappings\": \"%s\"\n", str_done(&ctx.map));
-		fprintf(file, "}\n");
+	app_proc(opts.in, &ctx);
 
-		fclose(file);
-		free(path);
+	if(opts.map != NULL) {
+		printf("//# sourceMappingURL=%s\n", opts.map);
 
-		str_delete(ctx.src);
-		str_delete(ctx.map);
+		fprintf(map, "{\n");
+		fprintf(map, "  \"version\": 3,\n");
+		fprintf(map, "  \"sources\": [%s],\n", str_done(&ctx.src));
+		fprintf(map, "  \"names\": [],\n");
+		fprintf(map, "  \"mappings\": \"%s\"\n", str_done(&ctx.map));
+		fprintf(map, "}\n");
 	}
+
+	str_delete(ctx.src);
+	str_delete(ctx.map);
+
+	if(opts.in != NULL)
+		fclose(in);
+
+	if(opts.out != NULL)
+		fclose(out);
+
+	if(opts.map != NULL)
+		fclose(map);
 
 	return 0;
 }

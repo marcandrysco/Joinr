@@ -6,7 +6,7 @@ LDFLAGS = -lm
 
 # targets and sources
 BIN = joinr
-SRC = src/main.c
+SRC = src/main.c src/aph.c
 
 # built from sources
 OBJ = $(SRC:.c=.o)
@@ -21,6 +21,18 @@ $(BIN): $(OBJ)
 # clean everything up
 clean:
 	rm -f $(OBJ) $(DEP)
+
+# install
+install:
+	install $(BIN) $(PREFIX)/bin/$(BIN)
+
+# uninstall
+uninstall:
+	rm $(PREFIX)/bin/$(BIN)
+
+# when to rebuild the makefile
+Makefile: configure Makefile.in
+	./configure
 
 # template rules
 %.o: %.c Makefile
