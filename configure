@@ -1,0 +1,24 @@
+#!/bin/sh
+
+PREFIX="/usr/local"
+
+for opt in "$@" ; do
+  case "$opt" in
+    "--help" )
+      echo "configure [OPTIONS]"
+      echo "  Configuration script for building Joinr."
+      echo "OPTIONS"
+      echo "  --prefix     Set the prefix for installation."
+      echo "  --rpath      Set an rpath for finding dynamic libraries."
+      echo "  --toolchain  Set the toolchain (e.g. mingw-w64 for cross-compiled builds)."
+      exit 0
+      ;;
+    esac
+done
+
+rm -f Makefile
+echo "PREFIX = $PREFIX" >> Makefile
+echo "" >> Makefile
+cat Makefile.in >> Makefile
+
+exit 0
