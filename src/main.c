@@ -102,6 +102,7 @@ int main(int argc, char **argv)
 	out = opts.out ? file_open(opts.out, "w") : stdout;
 	map = opts.map ? file_open(opts.map, "w") : NULL;
 
+	ctx.out = out;
 	ctx.src = str_new();
 	ctx.map = str_new();
 	ctx.lin = ctx.col = 0;
@@ -111,7 +112,7 @@ int main(int argc, char **argv)
 	app_proc(opts.in, &ctx);
 
 	if(opts.map != NULL) {
-		printf("//# sourceMappingURL=%s\n", opts.map);
+		fprintf(ctx.out, "//# sourceMappingURL=%s\n", opts.map);
 
 		fprintf(map, "{\n");
 		fprintf(map, "  \"version\": 3,\n");
@@ -172,7 +173,7 @@ static void app_proc(const char *path, struct ctx_t *ctx)
 			free(iter);
 		}
 		else {
-			printf("%s", line);
+			fprintf(ctx->out, "%s", line);
 			str_map(&ctx->map, 0, src - ctx->src_cur, lin - ctx->lin_cur, 0, 0);
 			str_ch(&ctx->map, ';');
 			//printf(":: col %d src %d slin %d scol %d\n", 0, src - ctx->src_cur, lin - ctx->lin_cur, 0);
