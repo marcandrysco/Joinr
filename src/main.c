@@ -24,14 +24,14 @@ struct str_t {
 
 /**
  * Context structure.
- *   @out: The output file.
+ *   @out, deps: The output and depdency file.
  *   @src, map: The sources and mapping structure.
  *   @lin, col: The line and column indices.
  *   @src_cur, src_cnt: The current and total sources.
  *   @lin_cur: The current line.
  */
 struct ctx_t {
-	FILE *out;
+	FILE *out, *deps;
 	struct str_t src, map;
 	uint32_t lin, col;
 	uint32_t src_cur, src_cnt;
@@ -67,8 +67,8 @@ static bool rdline(FILE *file, char **line, uint32_t *size);
 
 
 struct opts_t {
-	bool verb;
-	const char *in, *out, *map;
+	bool verb, css;
+	const char *in, *out, *map, *deps;
 };
 
 /**
@@ -85,7 +85,9 @@ int main(int argc, char **argv)
 		APH_STR('\0', NULL, 0, &opts.in),
 		APH_STR('o', "output", 0, &opts.out),
 		APH_STR('m', "map", 0, &opts.map),
+		APH_STR('d', "deps", 0, &opts.deps),
 		APH_FLAG('v', "verbose", 0, &opts.verb),
+		APH_FLAG('c', "css", 0, &opts.css),
 		APH_END
 	};
 
@@ -108,15 +110,23 @@ int main(int argc, char **argv)
 	ctx.lin = ctx.col = 0;
 	ctx.src_cur = ctx.src_cnt = 0;
 	ctx.lin_cur = 0;
+	ctx.deps = opts.deps ? file_open(opts.deps, "w") : NULL;
+
+	if(ctx.deps != NULL)
+		fprintf(ctx.deps, "%s:", opts.out);
 
 	app_proc(opts.in, &ctx);
 
 	if(opts.map != NULL) {
-		fprintf(ctx.out, "//# sourceMappingURL=%s\n", opts.map);
+		if(opts.css)
+			fprintf(ctx.out, "/*# sourceMappingURL=%s */\n", opts.map);
+		else
+			fprintf(ctx.out, "//# sourceMappingURL=%s\n", opts.map);
 
 		fprintf(map, "{\n");
 		fprintf(map, "  \"version\": 3,\n");
 		fprintf(map, "  \"sources\": [%s],\n", str_done(&ctx.src));
+		fprintf(map, "  \"sourcesContent\": [],\n");
 		fprintf(map, "  \"names\": [],\n");
 		fprintf(map, "  \"mappings\": \"%s\"\n", str_done(&ctx.map));
 		fprintf(map, "}\n");
@@ -133,6 +143,11 @@ int main(int argc, char **argv)
 
 	if(opts.map != NULL)
 		fclose(map);
+
+	if(ctx.deps != NULL) {
+		fprintf(ctx.deps, "\n");
+		fclose(ctx.deps);
+	}
 
 	return 0;
 }
@@ -169,6 +184,10 @@ static void app_proc(const char *path, struct ctx_t *ctx)
 			char *iter;
 
 			assert(asprintf(&iter, "%.*s", match[1].rm_eo - match[1].rm_so, line + match[1].rm_so) >= 0);
+
+			if(ctx->deps != NULL)
+				fprintf(ctx->deps, " %s", iter);
+
 			app_proc(iter, ctx);
 			free(iter);
 		}
