@@ -319,7 +319,7 @@ static char *str_done(struct str_t *str)
  */
 static bool rdline(FILE *file, char **line, uint32_t *size)
 {
-	char ch;
+	int ch;
 	uint32_t i = 0;
 
 	while(true) {
